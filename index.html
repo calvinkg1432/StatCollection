@@ -3,40 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>籃球即時紀錄板</title>
+  <title>籃球即時紀錄板 (含換人功能)</title>
   <style>
     * { box-sizing: border-box; touch-action: manipulation; }
     body { font-family: system-ui, -apple-system, sans-serif; background: #121212; color: #fff; margin: 0; padding: 10px; }
     
+    .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .btn-tools { background: #334155; color: #f8fafc; border: 1px solid #475569; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; }
+
     .section-title { font-size: 14px; color: #aaa; margin: 5px 0; }
     
-    /* 球員選擇區 */
+    /* 場上球員區 */
     .player-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 15px; }
-    .btn-player { background: #2a2a2a; color: #fff; border: 2px solid #444; border-radius: 8px; font-size: 22px; font-weight: bold; padding: 15px 0; text-align: center; cursor: pointer; }
+    .btn-player { background: #2a2a2a; color: #fff; border: 2px solid #444; border-radius: 8px; font-size: 22px; font-weight: bold; padding: 15px 0; text-align: center; cursor: pointer; position: relative; }
     .btn-player.selected { background: #ff9800; color: #000; border-color: #fff; transform: scale(1.05); }
 
-    /* 統計按鈕區 */
+    /* 統計動作按鈕區 */
     .action-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
     .btn-action { background: #1e293b; color: #38bdf8; border: 1px solid #334155; border-radius: 10px; font-size: 18px; font-weight: bold; padding: 18px 0; text-align: center; cursor: pointer; }
     .btn-action:active { background: #0284c7; color: #fff; }
     .btn-action.miss { color: #f43f5e; }
     .btn-action.stat { color: #4ade80; }
 
-    /* 狀態與撤銷欄 */
+    /* 底部狀態欄 */
     .status-bar { background: #1e1e1e; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333; }
     .log-text { font-size: 14px; color: #e2e8f0; }
     .btn-undo { background: #ef4444; color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+
+    /* Modal 彈窗介面 */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; }
+    .modal-content { background: #1e293b; width: 90%; max-width: 400px; border-radius: 12px; padding: 20px; border: 1px solid #475569; }
+    .modal-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #f8fafc; }
+    .bench-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; }
+    .btn-bench { background: #334155; color: #fff; border: 1px solid #64748b; padding: 12px 0; border-radius: 6px; font-size: 18px; font-weight: bold; text-align: center; cursor: pointer; }
+    .btn-close { background: #64748b; color: white; border: none; width: 100%; padding: 10px; border-radius: 6px; margin-top: 15px; font-weight: bold; cursor: pointer; }
   </style>
 </head>
 <body>
 
-  <div class="section-title">1. 選取在場球員號碼：</div>
-  <div class="player-grid">
-    <div class="btn-player" onclick="selectPlayer('4', this)">4</div>
-    <div class="btn-player" onclick="selectPlayer('7', this)">7</div>
-    <div class="btn-player" onclick="selectPlayer('10', this)">10</div>
-    <div class="btn-player" onclick="selectPlayer('12', this)">12</div>
-    <div class="btn-player" onclick="selectPlayer('23', this)">23</div>
+  <div class="header-bar">
+    <span style="font-weight: bold; color: #ff9800;">🏀 籃球即時紀錄板</span>
+    <div>
+      <button class="btn-tools" onclick="openSubModal()">🔄 換人</button>
+      <button class="btn-tools" onclick="openRosterModal()">⚙️ 名單</button>
+    </div>
+  </div>
+
+  <div class="section-title">1. 選取場上球員：</div>
+  <div class="player-grid" id="onCourtGrid">
+    <!-- 動態產生場上 5 位球員按鈕 -->
   </div>
 
   <div class="section-title">2. 點擊動作紀錄：</div>
@@ -57,37 +72,73 @@
   </div>
 
   <div class="status-bar">
-    <div class="log-text" id="latestLog">等待輸入數據...</div>
-    <button class="btn-undo" onclick="undoLast()">↩️ 撤銷上一筆</button>
+    <div class="log-text" id="latestLog">等待輸入...</div>
+    <button class="btn-undo" onclick="undoLast()">↩️ 撤銷</button>
+  </div>
+
+  <!-- 彈窗 1：換人 Modal -->
+  <div class="modal" id="subModal">
+    <div class="modal-content">
+      <div class="modal-title">🔄 選擇要被換下場的球員：</div>
+      <div class="player-grid" id="subOutGrid"></div>
+      
+      <div id="subInSection" style="display: none; margin-top: 15px;">
+        <div class="modal-title" style="color: #4ade80;">選擇替補上場的球員：</div>
+        <div class="bench-grid" id="benchGrid"></div>
+      </div>
+
+      <button class="btn-close" onclick="closeModal('subModal')">取消 / 關閉</button>
+    </div>
+  </div>
+
+  <!-- 彈窗 2：設定全隊名單 Modal -->
+  <div class="modal" id="rosterModal">
+    <div class="modal-content">
+      <div class="modal-title">⚙️ 設定全隊登錄號碼</div>
+      <p style="font-size: 12px; color: #94a3b8; margin-bottom: 10px;">請用逗號分隔所有球員號碼（前 5 個號碼會預設為先發）：</p>
+      <input type="text" id="rosterInput" style="width: 100%; padding: 10px; font-size: 16px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #fff;" value="4, 7, 10, 12, 23, 1, 3, 5, 8, 99">
+      <button class="btn-close" style="background: #22c55e;" onclick="saveRoster()">儲存全隊名單</button>
+      <button class="btn-close" onclick="closeModal('rosterModal')">取消</button>
+    </div>
   </div>
 
   <script>
-    // ⚠️ 貼上你從 Apps Script 獲得的 Web App URL
+    // ⚠️ 請確保這裏填寫正確的 GAS 正式網址 (/exec 結尾)
     const GAS_URL = "https://script.google.com/a/macros/ywc.edu.mo/s/AKfycbwhUm-8jt7Vg1VezrmnCWye9OfC5g6wbamdeicHVBkfT__lW1oebkvDZuO0s4tDBS23/exec"; 
-    
+
+    let fullRoster = ["4", "7", "10", "12", "23", "1", "3", "5", "8", "99"];
+    let onCourt = ["4", "7", "10", "12", "23"];
     let currentPlayer = null;
+    let playerToSubOut = null;
+
+    // 初始化渲染介面
+    function renderOnCourt() {
+      const grid = document.getElementById('onCourtGrid');
+      grid.innerHTML = '';
+      onCourt.forEach(num => {
+        const btn = document.createElement('div');
+        btn.className = `btn-player ${currentPlayer === num ? 'selected' : ''}`;
+        btn.innerText = num;
+        btn.onclick = () => selectPlayer(num, btn);
+        grid.appendChild(btn);
+      });
+    }
 
     function selectPlayer(num, el) {
       currentPlayer = num;
-      document.querySelectorAll('.btn-player').forEach(btn => btn.classList.remove('selected'));
+      document.querySelectorAll('#onCourtGrid .btn-player').forEach(b => b.classList.remove('selected'));
       el.classList.add('selected');
     }
 
+    // 發送數據到 Google Sheets
     function record(actionName, payload) {
       if (!currentPlayer) {
-        alert("請先點選上方球員號碼！");
+        alert("請先點選上方場上球員！");
         return;
       }
-
-      const data = {
-        player: currentPlayer,
-        rawText: `#${currentPlayer} ${actionName}`,
-        ...payload
-      };
-
+      const data = { player: currentPlayer, rawText: `#${currentPlayer} ${actionName}`, ...payload };
       document.getElementById('latestLog').innerText = `已送出: #${currentPlayer} ${actionName}`;
 
-      // 背景發送數據到 Google Sheets，不卡頓 UI
       fetch(GAS_URL, {
         method: "POST",
         mode: "no-cors",
@@ -97,18 +148,95 @@
     }
 
     function undoLast() {
-      if(!confirm("確定要刪除 Google Sheets 上的最後一筆紀錄？")) return;
-      
-      document.getElementById('latestLog').innerText = "正在撤銷上一筆紀錄...";
+      if(!confirm("確定撤銷上一筆紀錄？")) return;
+      document.getElementById('latestLog').innerText = "撤銷中...";
       fetch(GAS_URL, {
         method: "POST",
         mode: "no-cors",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ actionType: "DELETE_LAST" })
       }).then(() => {
-        document.getElementById('latestLog').innerText = "已成功撤銷！";
+        document.getElementById('latestLog').innerText = "已成功撤销！";
       });
     }
+
+    // --- 換人邏輯 ---
+    function openSubModal() {
+      playerToSubOut = null;
+      document.getElementById('subInSection').style.display = 'none';
+      const outGrid = document.getElementById('subOutGrid');
+      outGrid.innerHTML = '';
+      
+      onCourt.forEach(num => {
+        const btn = document.createElement('div');
+        btn.className = 'btn-player';
+        btn.innerText = num;
+        btn.onclick = () => selectSubOut(num, btn);
+        outGrid.appendChild(btn);
+      });
+
+      document.getElementById('subModal').style.display = 'flex';
+    }
+
+    function selectSubOut(num, el) {
+      playerToSubOut = num;
+      document.querySelectorAll('#subOutGrid .btn-player').forEach(b => b.classList.remove('selected'));
+      el.classList.add('selected');
+
+      // 顯示板凳球員（全隊名單扣除場上球員）
+      const bench = fullRoster.filter(p => !onCourt.includes(p));
+      const benchGrid = document.getElementById('benchGrid');
+      benchGrid.innerHTML = '';
+
+      bench.forEach(num => {
+        const btn = document.createElement('div');
+        btn.className = 'btn-bench';
+        btn.innerText = num;
+        btn.onclick = () => executeSub(num);
+        benchGrid.appendChild(btn);
+      });
+
+      document.getElementById('subInSection').style.display = 'block';
+    }
+
+    function executeSub(subInNum) {
+      const index = onCourt.indexOf(playerToSubOut);
+      if (index !== -1) {
+        onCourt[index] = subInNum;
+        if (currentPlayer === playerToSubOut) currentPlayer = subInNum; // 若剛好選中該球員，自動切換
+        renderOnCourt();
+        document.getElementById('latestLog').innerText = `換人: #${playerToSubOut} 下, #${subInNum} 上`;
+      }
+      closeModal('subModal');
+    }
+
+    // --- 名單設定邏輯 ---
+    function openRosterModal() {
+      document.getElementById('rosterInput').value = fullRoster.join(', ');
+      document.getElementById('rosterModal').style.display = 'flex';
+    }
+
+    function saveRoster() {
+      const input = document.getElementById('rosterInput').value;
+      const list = input.split(',').map(s => s.trim()).filter(s => s.length > 0);
+      if (list.length < 5) {
+        alert("登錄名單至少需要 5 位球員！");
+        return;
+      }
+      fullRoster = list;
+      onCourt = fullRoster.slice(0, 5); // 取前 5 個為先發
+      currentPlayer = null;
+      renderOnCourt();
+      closeModal('rosterModal');
+      document.getElementById('latestLog').innerText = "已更新全隊名單！";
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).style.display = 'none';
+    }
+
+    // 頁面載入自動初始化
+    renderOnCourt();
   </script>
 </body>
 </html>
