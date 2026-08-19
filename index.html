@@ -3,14 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>籃球即時紀錄板 (終極防誤觸版)</title>
+  <title>籃球即時紀錄板 (完場鎖定+完全版)</title>
   <style>
     * { box-sizing: border-box; touch-action: manipulation; }
     body { font-family: system-ui, -apple-system, sans-serif; background: #121212; color: #fff; margin: 0; padding: 10px; }
     
     /* 頂部導航 */
     .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-    .btn-tools { background: #334155; color: #f8fafc; border: 1px solid #475569; padding: 6px 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; }
+    .btn-tools { background: #334155; color: #f8fafc; border: 1px solid #475569; padding: 6px 8px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
+    .btn-tools.endgame { background: #059669; color: #fff; border-color: #10b981; }
     .btn-tools.danger { background: #7f1d1d; color: #fca5a5; border-color: #991b1b; }
 
     /* 模式與隊伍切換區 */
@@ -30,6 +31,9 @@
     .self-badge { background: #78350f; color: #fef3c7; border: 1px solid #d97706; padding: 10px; text-align: center; border-radius: 6px; font-weight: bold; font-size: 14px; display: none; }
 
     .section-title { font-size: 13px; color: #94a3b8; margin: 10px 0 5px 0; }
+
+    /* 操作區鎖定樣式 */
+    .locked-area { opacity: 0.35; pointer-events: none; filter: grayscale(0.8); }
 
     /* 場上球員區 */
     .player-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 12px; }
@@ -66,10 +70,11 @@
 
   <!-- 頂部導航列 -->
   <div class="header-bar">
-    <span style="font-weight: bold; color: #ff9800; font-size: 16px;">🏀 籃球紀錄板</span>
+    <span style="font-weight: bold; color: #ff9800; font-size: 15px;">🏀 籃球紀錄板</span>
     <div>
       <button class="btn-tools" onclick="openSubModal()">🔄 換人</button>
       <button class="btn-tools" onclick="openRosterModal()">⚙️ 名單</button>
+      <button class="btn-tools endgame" onclick="openEndGameModal()">🏁 完場</button>
       <button class="btn-tools danger" onclick="openResetModal()">🧹 重設</button>
     </div>
   </div>
@@ -91,24 +96,27 @@
     </div>
   </div>
 
-  <div class="section-title">1. 選取場上球員：</div>
-  <div class="player-grid" id="onCourtGrid"></div>
+  <!-- 主要操作區域 (完場時會被 locked-area 鎖定) -->
+  <div id="interactiveArea">
+    <div class="section-title">1. 選取場上球員：</div>
+    <div class="player-grid" id="onCourtGrid"></div>
 
-  <div class="section-title">2. 點擊動作紀錄：</div>
-  <div class="action-grid">
-    <div class="btn-action" onclick="record('2分進球', {p2_attempts:1, p2_made:1})">🏀 +2分</div>
-    <div class="btn-action miss" onclick="record('2分射失', {p2_attempts:1})">❌ 2分射失</div>
-    
-    <div class="btn-action" onclick="record('3分進球', {p3_attempts:1, p3_made:1})">🔥 +3分</div>
-    <div class="btn-action miss" onclick="record('3分射失', {p3_attempts:1})">❌ 3分射失</div>
+    <div class="section-title">2. 點擊動作紀錄：</div>
+    <div class="action-grid">
+      <div class="btn-action" onclick="record('2分進球', {p2_attempts:1, p2_made:1})">🏀 +2分</div>
+      <div class="btn-action miss" onclick="record('2分射失', {p2_attempts:1})">❌ 2分射失</div>
+      
+      <div class="btn-action" onclick="record('3分進球', {p3_attempts:1, p3_made:1})">🔥 +3分</div>
+      <div class="btn-action miss" onclick="record('3分射失', {p3_attempts:1})">❌ 3分射失</div>
 
-    <div class="btn-action" onclick="record('罰球進球', {ft_attempts:1, ft_made:1})">🎯 罰球入</div>
-    <div class="btn-action miss" onclick="record('罰球射失', {ft_attempts:1})">❌ 罰球失</div>
+      <div class="btn-action" onclick="record('罰球進球', {ft_attempts:1, ft_made:1})">🎯 罰球入</div>
+      <div class="btn-action miss" onclick="record('罰球射失', {ft_attempts:1})">❌ 罰球失</div>
 
-    <div class="btn-action stat" onclick="record('籃板', {reb:1})">🖐️ 籃板</div>
-    <div class="btn-action stat" onclick="record('助攻', {ast:1})">👟 助攻</div>
-    <div class="btn-action stat" onclick="record('封阻', {blk:1})">🚫 封阻</div>
-    <div class="btn-action foul" onclick="record('個人犯規', {foul:1})">⚠️ 犯規 (Foul)</div>
+      <div class="btn-action stat" onclick="record('籃板', {reb:1})">🖐️ 籃板</div>
+      <div class="btn-action stat" onclick="record('助攻', {ast:1})">👟 助攻</div>
+      <div class="btn-action stat" onclick="record('封阻', {blk:1})">🚫 封阻</div>
+      <div class="btn-action foul" onclick="record('個人犯規', {foul:1})">⚠️ 犯規 (Foul)</div>
+    </div>
   </div>
 
   <div class="status-bar">
@@ -154,7 +162,7 @@
     </div>
   </div>
 
-  <!-- Modal 4：通用提示訊息 Modal (徹底替代原生 alert) -->
+  <!-- Modal 4：通用提示 Modal (取代原生 alert) -->
   <div class="modal" id="alertModal">
     <div class="modal-content" style="text-align: center;">
       <div class="modal-title" id="alertModalTitle" style="color: #f59e0b; font-size: 17px;">📢 系統提示</div>
@@ -163,20 +171,36 @@
     </div>
   </div>
 
-  <!-- Modal 5：重設比賽確認 Modal -->
+  <!-- Modal 5：重設比賽 Modal -->
   <div class="modal" id="resetModal">
     <div class="modal-content" style="text-align: center;">
       <div class="modal-title" style="color: #ef4444; font-size: 17px;">🧹 確定要重設比賽？</div>
       <p style="color: #cbd5e1; font-size: 14px; margin: 15px 0 20px 0; text-align: left; background: #0f172a; padding: 12px; border-radius: 6px; border: 1px solid #334155; line-height: 1.5;">
         重設將會執行以下動作：<br>
         1. <strong>清空所有球員犯規次數</strong><br>
-        2. <strong>恢復先發 5 人名單</strong><br>
-        3. <strong>清除歷史撤銷紀錄</strong><br><br>
-        <span style="color: #4ade80;">（已上傳至 Google Sheets 的歷史數據不會被影響）</span>
+        2. <strong>恢復預設 5 人陣容與狀態</strong><br>
+        3. <strong>清除歷史撤銷隊列</strong><br><br>
+        <span style="color: #4ade80;">（雲端已存數據不受影響）</span>
       </p>
       <div style="display: flex; gap: 10px;">
         <button class="btn-close" style="background: #ef4444; margin-top: 0; flex: 1;" onclick="confirmReset()">確定重設</button>
         <button class="btn-close" style="background: #64748b; margin-top: 0; flex: 1;" onclick="closeModal('resetModal')">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 6：完場控制 Modal (含鎖定/解鎖/開新局選單) -->
+  <div class="modal" id="endGameModal">
+    <div class="modal-content" style="text-align: center;">
+      <div class="modal-title" style="color: #34d399; font-size: 18px;">🏁 比賽結束控制台</div>
+      <p style="color: #cbd5e1; font-size: 14px; margin: 12px 0 18px 0; text-align: left; background: #0f172a; padding: 12px; border-radius: 6px; border: 1px solid #334155; line-height: 1.5;">
+        ✅ 雲端已寫入「🏁 比賽結束」分隔線。<br>
+        🔒 按鈕區已自動鎖定，防止手滑誤觸。
+      </p>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button class="btn-close" style="background: #475569; margin: 0;" onclick="closeModal('endGameModal')">👀 保持鎖定，現場核對數據</button>
+        <button class="btn-close" style="background: #0284c7; margin: 0;" onclick="unlockGame()">🔓 解鎖繼續 (打加時賽/改判)</button>
+        <button class="btn-close" style="background: #e11d48; margin: 0;" onclick="confirmReset(); closeModal('endGameModal');">🧹 清空畫面 (準備下一場)</button>
       </div>
     </div>
   </div>
@@ -189,6 +213,7 @@
     let currentTargetSheet = "Raw_Log_Home";
     let currentPlayer = null;
     let playerToSubOut = null;
+    let isGameEnded = JSON.parse(localStorage.getItem('bb_isGameEnded')) || false;
 
     let fullRoster = JSON.parse(localStorage.getItem('bb_fullRoster')) || ["4", "7", "10", "12", "23", "1", "3", "5", "8", "99"];
     let onCourt = JSON.parse(localStorage.getItem('bb_onCourt')) || ["4", "7", "10", "12", "23"];
@@ -198,18 +223,58 @@
     // 初始化頁面
     window.onload = function() {
       renderOnCourt();
+      applyLockState();
     };
 
-    // 防止現場下滑重新整理
+    // 防止下滑刷新
     window.onbeforeunload = function() {
       return "比賽紀錄進行中，確定要離開或重新整理嗎？";
     };
 
-    // 自訂 Alert 彈窗 (取代原生 alert，徹底解決「關閉網頁」按鈕)
+    // 自訂 Alert (徹底解決「關閉網頁」按鈕)
     function showAlert(title, text) {
       document.getElementById('alertModalTitle').innerText = title;
       document.getElementById('alertModalText').innerText = text;
       document.getElementById('alertModal').style.display = 'flex';
+    }
+
+    // 完場鎖定 UI 控管
+    function applyLockState() {
+      const area = document.getElementById('interactiveArea');
+      if (isGameEnded) {
+        area.classList.add('locked-area');
+        document.getElementById('latestLog').innerText = "🏁 比賽已完場 (按鈕已鎖定，如需紀錄請解鎖)";
+      } else {
+        area.classList.remove('locked-area');
+      }
+    }
+
+    // --- 完場與解鎖邏輯 ---
+    function openEndGameModal() {
+      isGameEnded = true;
+      localStorage.setItem('bb_isGameEnded', JSON.stringify(true));
+      applyLockState();
+
+      // 發送雲端劃線分隔標記
+      fetch(GAS_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          actionType: "END_GAME",
+          targetSheet: currentTargetSheet
+        })
+      });
+
+      document.getElementById('endGameModal').style.display = 'flex';
+    }
+
+    function unlockGame() {
+      isGameEnded = false;
+      localStorage.setItem('bb_isGameEnded', JSON.stringify(false));
+      applyLockState();
+      closeModal('endGameModal');
+      document.getElementById('latestLog').innerText = "🔓 比賽已解鎖，可繼續紀錄！";
     }
 
     // --- 模式與隊伍切換邏輯 ---
@@ -279,6 +344,8 @@
     }
 
     function selectPlayer(num, el) {
+      if (isGameEnded) return;
+
       const key = `${currentTargetSheet}_${num}`;
       const fouls = playerFouls[key] || 0;
 
@@ -295,6 +362,11 @@
 
     // --- 紀錄數據主邏輯 ---
     function record(actionName, payload) {
+      if (isGameEnded) {
+        showAlert("🔒 比賽已完場", "目前紀錄功能已鎖定。如需繼續紀錄，請點擊【🏁 完場】選單並選擇【解鎖繼續】。");
+        return;
+      }
+
       if (!currentPlayer) {
         showAlert("⚠️ 操作提示", "請先點選上方場上球員！");
         return;
@@ -303,16 +375,14 @@
       const key = `${currentTargetSheet}_${currentPlayer}`;
       const currentFouls = playerFouls[key] || 0;
 
-      // 5 犯鎖定保護
       if (currentFouls >= 5) {
-        showAlert("⛔ 犯規滿額通知", `#${currentPlayer} 號球員已 5 犯畢業離場！無法再紀錄任何數據，請立即換人。`);
+        showAlert("⛔ 犯規滿額通知", `#${currentPlayer} 號球員已 5 犯畢業離場！無法再紀錄任何數據，請進行換人。`);
         openSubModal(currentPlayer);
         return;
       }
 
       let isFoulAction = false;
 
-      // 如果點擊了犯規按鈕
       if (payload.foul) {
         isFoulAction = true;
         const newFouls = currentFouls + 1;
@@ -324,11 +394,10 @@
         } else if (newFouls === 4) {
           showAlert("⚠️ 犯規警告", `#${currentPlayer} 號球員已累積 4 次犯規（犯滿危機）！`);
         } else if (newFouls >= 5) {
-          showAlert("🚨 畢業通知", `#${currentPlayer} 號球員累積 5 犯畢業！系統已將其鎖定，請立即進行換人！`);
+          showAlert("🚨 畢業通知", `#${currentPlayer} 號球員累積 5 犯畢業！系統已鎖定該球員，請進行換人！`);
         }
       }
 
-      // 寫入歷史 Stack
       actionStack.push({
         targetSheet: currentTargetSheet,
         player: currentPlayer,
@@ -337,7 +406,6 @@
       });
       localStorage.setItem('bb_actionStack', JSON.stringify(actionStack));
 
-      // 發送至 GAS
       const data = { 
         targetSheet: currentTargetSheet,
         player: currentPlayer, 
@@ -506,14 +574,17 @@
       // 清空本地快取
       localStorage.removeItem('bb_playerFouls');
       localStorage.removeItem('bb_actionStack');
+      localStorage.removeItem('bb_isGameEnded');
       
       // 恢復預設值
       playerFouls = {};
       actionStack = [];
+      isGameEnded = false;
       onCourt = fullRoster.slice(0, 5);
       localStorage.setItem('bb_onCourt', JSON.stringify(onCourt));
       currentPlayer = null;
 
+      applyLockState();
       renderOnCourt();
       document.getElementById('latestLog').innerText = "🧹 比賽已成功重設，可開始新賽事！";
     }
