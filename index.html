@@ -181,6 +181,8 @@
         <button class="btn-close" style="background: #475569; margin: 0;" onclick="closeModal('endGameModal')">👀 保持鎖定，現場核對數據</button>
         <button class="btn-close" style="background: #0284c7; margin: 0;" onclick="unlockGame()">🔓 解鎖繼續 (打加時賽/改判)</button>
         <button class="btn-close" style="background: #e11d48; margin: 0;" onclick="startNewGamePrompt(); closeModal('endGameModal');">➕ 結束本場，開新比賽</button>
+        <!-- 👇 新增：離場登出按鈕 -->
+        <button class="btn-close" style="background: #6b7280; margin: 0;" onclick="logoutAndExit()">🚪 結束紀錄並登出 (返回首頁)</button>
       </div>
     </div>
   </div>
@@ -347,6 +349,23 @@
       applyLockState();
       closeModal('endGameModal');
       document.getElementById('latestLog').innerText = "🔓 比賽已解鎖，可繼續紀錄！";
+    }
+
+    // 👇 新增：完場離場登出函數
+    function logoutAndExit() {
+      // 1. 清除本機賽事狀態
+      localStorage.removeItem('bb_gameId');
+      localStorage.removeItem('bb_playerFouls');
+      localStorage.removeItem('bb_actionStack');
+      localStorage.setItem('bb_isGameEnded', JSON.stringify(false));
+      
+      currentGameId = "";
+      isGameEnded = false;
+      
+      // 2. 關閉完場彈窗，並開啟登入畫面
+      closeModal('endGameModal');
+      openLoginModal();
+      showAlert("👋 已完成紀錄", "本場賽事數據已安全儲存至雲端。");
     }
 
     function renderOnCourt() {
