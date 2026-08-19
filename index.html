@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>籃球即時紀錄板</title>
+  <style>
+    * { box-sizing: border-box; touch-action: manipulation; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #121212; color: #fff; margin: 0; padding: 10px; }
+    
+    .section-title { font-size: 14px; color: #aaa; margin: 5px 0; }
+    
+    /* 球員選擇區 */
+    .player-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 15px; }
+    .btn-player { background: #2a2a2a; color: #fff; border: 2px solid #444; border-radius: 8px; font-size: 22px; font-weight: bold; padding: 15px 0; text-align: center; cursor: pointer; }
+    .btn-player.selected { background: #ff9800; color: #000; border-color: #fff; transform: scale(1.05); }
+
+    /* 統計按鈕區 */
+    .action-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
+    .btn-action { background: #1e293b; color: #38bdf8; border: 1px solid #334155; border-radius: 10px; font-size: 18px; font-weight: bold; padding: 18px 0; text-align: center; cursor: pointer; }
+    .btn-action:active { background: #0284c7; color: #fff; }
+    .btn-action.miss { color: #f43f5e; }
+    .btn-action.stat { color: #4ade80; }
+
+    /* 狀態與撤銷欄 */
+    .status-bar { background: #1e1e1e; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333; }
+    .log-text { font-size: 14px; color: #e2e8f0; }
+    .btn-undo { background: #ef4444; color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <div class="section-title">1. 選取在場球員號碼：</div>
+  <div class="player-grid">
+    <div class="btn-player" onclick="selectPlayer('4', this)">4</div>
+    <div class="btn-player" onclick="selectPlayer('7', this)">7</div>
+    <div class="btn-player" onclick="selectPlayer('10', this)">10</div>
+    <div class="btn-player" onclick="selectPlayer('12', this)">12</div>
+    <div class="btn-player" onclick="selectPlayer('23', this)">23</div>
+  </div>
+
+  <div class="section-title">2. 點擊動作紀錄：</div>
+  <div class="action-grid">
+    <div class="btn-action" onclick="record('2分進球', {p2_attempts:1, p2_made:1})">🏀 +2分</div>
+    <div class="btn-action miss" onclick="record('2分射失', {p2_attempts:1})">❌ 2分射失</div>
+    
+    <div class="btn-action" onclick="record('3分進球', {p3_attempts:1, p3_made:1})">🔥 +3分</div>
+    <div class="btn-action miss" onclick="record('3分射失', {p3_attempts:1})">❌ 3分射失</div>
+
+    <div class="btn-action" onclick="record('罰球進球', {ft_attempts:1, ft_made:1})">🎯 罰球入</div>
+    <div class="btn-action miss" onclick="record('罰球射失', {ft_attempts:1})">❌ 罰球失</div>
+
+    <div class="btn-action stat" onclick="record('籃板', {reb:1})">🖐️ 籃板</div>
+    <div class="btn-action stat" onclick="record('助攻', {ast:1})">👟 助攻</div>
+    <div class="btn-action stat" onclick="record('封阻', {blk:1})">🚫 封阻</div>
+    <div class="btn-action stat" onclick="record('犯規', {foul:1})">⚠️ 犯規</div>
+  </div>
+
+  <div class="status-bar">
+    <div class="log-text" id="latestLog">等待輸入數據...</div>
+    <button class="btn-undo" onclick="undoLast()">↩️ 撤銷上一筆</button>
+  </div>
+
+  <script>
+    // ⚠️ 貼上你從 Apps Script 獲得的 Web App URL
+    const GAS_URL = "https://script.google.com/a/macros/ywc.edu.mo/s/AKfycbwhUm-8jt7Vg1VezrmnCWye9OfC5g6wbamdeicHVBkfT__lW1oebkvDZuO0s4tDBS23/exec"; 
+    
+    let currentPlayer = null;
+
+    function selectPlayer(num, el) {
+      currentPlayer = num;
+      document.querySelectorAll('.btn-player').forEach(btn => btn.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+
+    function record(actionName, payload) {
+      if (!currentPlayer) {
+        alert("請先點選上方球員號碼！");
+        return;
+      }
+
+      const data = {
+        player: currentPlayer,
+        rawText: `#${currentPlayer} ${actionName}`,
+        ...payload
+      };
+
+      document.getElementById('latestLog').innerText = `已送出: #${currentPlayer} ${actionName}`;
+
+      // 背景發送數據到 Google Sheets，不卡頓 UI
+      fetch(GAS_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+    }
+
+    function undoLast() {
+      if(!confirm("確定要刪除 Google Sheets 上的最後一筆紀錄？")) return;
+      
+      document.getElementById('latestLog').innerText = "正在撤銷上一筆紀錄...";
+      fetch(GAS_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actionType: "DELETE_LAST" })
+      }).then(() => {
+        document.getElementById('latestLog').innerText = "已成功撤銷！";
+      });
+    }
+  </script>
+</body>
+</html>
