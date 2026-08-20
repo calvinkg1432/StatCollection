@@ -2,396 +2,547 @@
 <html lang="zh-HK">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>籃球賽事教練數據採集系統</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>籃球個人戰績紀錄板 (教練並發控制版)</title>
   <style>
-    :root {
-      --primary-color: #007bff;
-      --success-color: #28a745;
-      --danger-color: #dc3545;
-      --bg-color: #f8f9fa;
-    }
+    * { box-sizing: border-box; touch-action: manipulation; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #121212; color: #fff; margin: 0; padding: 10px; }
+    
+    .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 5px; }
+    .session-info { background: #1e293b; padding: 5px 10px; border-radius: 6px; border: 1px solid #334155; font-size: 12px; }
+    .session-info span { color: #38bdf8; font-weight: bold; }
+    
+    .btn-tools { background: #334155; color: #f8fafc; border: 1px solid #475569; padding: 6px 8px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
+    .btn-tools.endgame { background: #059669; color: #fff; border-color: #10b981; }
+    .btn-tools.danger { background: #7f1d1d; color: #fca5a5; border-color: #991b1b; }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background-color: var(--bg-color);
-      margin: 0;
-      padding: 12px;
-      color: #333;
-    }
+    .mode-panel { background: #1e293b; padding: 10px; border-radius: 10px; border: 1px solid #334155; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+    .status-badge { background: #78350f; color: #fef3c7; border: 1px solid #d97706; padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 13px; }
 
-    .container {
-      max-width: 500px;
-      margin: 0 auto;
-      background: #fff;
-      padding: 16px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
+    .section-title { font-size: 13px; color: #94a3b8; margin: 10px 0 5px 0; }
+    .locked-area { opacity: 0.35; pointer-events: none; filter: grayscale(0.8); }
 
-    h2, h3 {
-      text-align: center;
-      margin-top: 0;
-      color: #1a1a1a;
-    }
+    .player-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 12px; }
+    .btn-player { background: #2a2a2a; color: #fff; border: 2px solid #444; border-radius: 8px; font-size: 20px; font-weight: bold; padding: 10px 0; text-align: center; cursor: pointer; position: relative; }
+    .btn-player.selected { background: #ff9800; color: #000; border-color: #fff; transform: scale(1.05); }
+    .btn-player.foul-warning { border-color: #f59e0b; background: #451a03; }
+    .btn-player.fouled-out { background: #450a0a; color: #f87171; border-color: #ef4444; opacity: 0.6; }
+    .foul-badge { font-size: 10px; display: block; font-weight: normal; margin-top: 2px; color: #cbd5e1; }
 
-    .form-group {
-      margin-bottom: 15px;
-    }
+    .action-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
+    .btn-action { background: #1e293b; color: #38bdf8; border: 1px solid #334155; border-radius: 10px; font-size: 17px; font-weight: bold; padding: 14px 0; text-align: center; cursor: pointer; }
+    .btn-action:active { background: #0284c7; color: #fff; }
+    .btn-action.miss { color: #f43f5e; }
+    .btn-action.stat { color: #4ade80; }
+    .btn-action.foul { color: #fbbf24; border-color: #b45309; }
 
-    label {
-      display: block;
-      font-weight: bold;
-      margin-bottom: 6px;
-      font-size: 14px;
-    }
+    .status-bar { background: #1e1e1e; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333; }
+    .log-text { font-size: 12px; color: #e2e8f0; line-height: 1.4; }
+    .btn-undo { background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; }
 
-    select, input {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 16px;
-      box-sizing: border-box;
-    }
-
-    .btn {
-      width: 100%;
-      padding: 14px;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .btn-primary { background-color: var(--primary-color); color: white; }
-    .btn-success { background-color: var(--success-color); color: white; }
-    .btn-danger { background-color: var(--danger-color); color: white; }
-    .btn:disabled { background-color: #ccc; cursor: not-allowed; }
-
-    /* 動作快選按鈕網格 */
-    .action-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
-      margin-top: 6px;
-    }
-
-    .btn-act {
-      padding: 12px;
-      border: 1px solid #007bff;
-      background: #f0f7ff;
-      color: #007bff;
-      border-radius: 6px;
-      font-weight: bold;
-      font-size: 15px;
-      cursor: pointer;
-    }
-
-    .btn-act.selected {
-      background: #007bff;
-      color: white;
-    }
-
-    .header-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-bottom: 12px;
-      margin-bottom: 12px;
-      border-bottom: 1px solid #eee;
-    }
-
-    .log-list {
-      max-height: 150px;
-      overflow-y: auto;
-      background: #f1f3f5;
-      padding: 8px;
-      border-radius: 6px;
-      font-size: 13px;
-    }
-
-    .log-item {
-      padding: 4px 0;
-      border-bottom: 1px dashed #ccc;
-    }
-
-    .status-badge {
-      font-size: 12px;
-      padding: 3px 8px;
-      border-radius: 12px;
-      background: #e9ecef;
-    }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; }
+    .modal-content { background: #1e293b; width: 90%; max-width: 400px; border-radius: 12px; padding: 20px; border: 1px solid #475569; }
+    .modal-title { font-size: 16px; font-weight: bold; margin-bottom: 12px; color: #f8fafc; }
+    .bench-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
+    .btn-bench { background: #334155; color: #fff; border: 1px solid #64748b; padding: 12px 0; border-radius: 6px; font-size: 18px; font-weight: bold; text-align: center; cursor: pointer; }
+    .btn-close { background: #64748b; color: white; border: none; width: 100%; padding: 10px; border-radius: 6px; margin-top: 15px; font-weight: bold; cursor: pointer; }
+    .input-field { width: 100%; padding: 12px; font-size: 16px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #fff; margin-bottom: 12px; }
   </style>
 </head>
 <body>
 
-<div class="container">
-  
-  <!-- 1. 登入畫面 -->
-  <div id="login-view">
-    <h2>🏀 籃球賽事採集系統</h2>
-    <p style="text-align: center; color: #666; font-size: 14px;">（系統限制最多同時 3 位教練使用）</p>
-    
-    <div class="form-group">
-      <label>請選擇您的教練身份：</label>
-      <select id="coach-select">
-        <option value="Coach01">Coach 01</option>
-        <option value="Coach02">Coach 02</option>
-        <option value="Coach03">Coach 03</option>
-      </select>
+  <!-- 頂部導航列 -->
+  <div class="header-bar">
+    <div class="session-info">
+      教練: <span id="dispCoachId">---</span> | 賽事: <span id="dispGameId">---</span>
     </div>
-
-    <button onclick="loginSystem()" class="btn btn-primary" id="login-btn">進入系統</button>
+    <div>
+      <button class="btn-tools" onclick="openSubModal()">🔄 換人</button>
+      <button class="btn-tools" onclick="openRosterModal()">⚙️ 名單</button>
+      <button class="btn-tools endgame" onclick="openEndGameModal()">🏁 完場</button>
+      <button class="btn-tools danger" onclick="openLoginModal()">👤 切換</button>
+    </div>
   </div>
 
-  <!-- 2. 主採集畫面 -->
-  <div id="main-view" style="display: none;">
-    <div class="header-bar">
-      <div>
-        <strong id="current-coach-display">---</strong>
-        <span class="status-badge" id="online-status">連線正常</span>
-      </div>
-      <button onclick="logoutSystem()" class="btn btn-danger" style="width: auto; padding: 6px 12px; font-size: 12px;">登出</button>
-    </div>
-
-    <form id="data-form" onsubmit="event.preventDefault();">
-      <div class="form-group">
-        <label>1. 節次</label>
-        <select id="quarter">
-          <option value="Q1">第一節 (Q1)</option>
-          <option value="Q2">第二節 (Q2)</option>
-          <option value="Q3">第三節 (Q3)</option>
-          <option value="Q4">第四節 (Q4)</option>
-          <option value="OT">延長賽 (OT)</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>2. 球員號碼</label>
-        <input type="number" id="player-no" placeholder="輸入號碼 (例如: 23)" min="0" max="99" required>
-      </div>
-
-      <div class="form-group">
-        <label>3. 動作類型</label>
-        <div class="action-grid">
-          <button type="button" class="btn-act" onclick="selectAction(this, '得分 (2分)')">得分 (2分)</button>
-          <button type="button" class="btn-act" onclick="selectAction(this, '得分 (3分)')">得分 (3分)</button>
-          <button type="button" class="btn-act" onclick="selectAction(this, '罰球得分')">罰球得分</button>
-          <button type="button" class="btn-act" onclick="selectAction(this, '籃板')">籃板</button>
-          <button type="button" class="btn-act" onclick="selectAction(this, '助攻')">助攻</button>
-          <button type="button" class="btn-act" onclick="selectAction(this, '抄截')">抄截</button>
-          <button type="button" class="btn-act" onclick="selectAction(this, '失誤')">失誤</button>
-          <button type="button" class="btn-act" onclick="selectAction(this, '犯規')">犯規</button>
-        </div>
-      </div>
-
-      <button onclick="submitData()" class="btn btn-primary" id="submit-btn" style="margin-top: 10px;">➕ 送出數據</button>
-    </form>
-
-    <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
-
-    <!-- 即時歷史記錄 -->
-    <div class="form-group">
-      <label>本次採集記錄 (最新在上)：</label>
-      <div class="log-list" id="local-logs">
-        <div style="color: #999; text-align: center;">尚無輸入記錄</div>
-      </div>
-    </div>
-
-    <!-- 匯出按鈕 -->
-    <button onclick="downloadMyExcel()" class="btn btn-success">📥 下載我的專屬 Excel (.xlsx)</button>
+  <div class="mode-panel">
+    <div class="status-badge">🏀 己隊個人戰績紀錄模式</div>
+    <button class="btn-tools" style="background: #0284c7; border-color: #38bdf8;" onclick="startNewGamePrompt()">➕ 開設新賽事</button>
   </div>
 
-</div>
+  <!-- 主要操作區域 -->
+  <div id="interactiveArea">
+    <div class="section-title">1. 選取場上球員：</div>
+    <div class="player-grid" id="onCourtGrid"></div>
 
-<script>
-  // ⚠️ 請務必替換為您部署後獲得的 Google Apps Script Web App 網址 ⚠️
-  const GAS_URL = "https://script.google.com/a/macros/ywc.edu.mo/s/AKfycbwhUm-8jt7Vg1VezrmnCWye9OfC5g6wbamdeicHVBkfT__lW1oebkvDZuO0s4tDBS23/exec";
+    <div class="section-title">2. 點擊動作紀錄：</div>
+    <div class="action-grid">
+      <div class="btn-action" onclick="record('2分進球', {p2_attempts:1, p2_made:1})">🏀 +2分</div>
+      <div class="btn-action miss" onclick="record('2分射失', {p2_attempts:1})">❌ 2分射失</div>
+      <div class="btn-action" onclick="record('3分進球', {p3_attempts:1, p3_made:1})">🔥 +3分</div>
+      <div class="btn-action miss" onclick="record('3分射失', {p3_attempts:1})">❌ 3分射失</div>
+      <div class="btn-action" onclick="record('罰球進球', {ft_attempts:1, ft_made:1})">🎯 罰球入</div>
+      <div class="btn-action miss" onclick="record('罰球射失', {ft_attempts:1})">❌ 罰球失</div>
+      <div class="btn-action stat" onclick="record('籃板', {reb:1})">🖐️ 籃板</div>
+      <div class="btn-action stat" onclick="record('助攻', {ast:1})">👟 助攻</div>
+      <div class="btn-action stat" onclick="record('封阻', {blk:1})">🚫 封阻</div>
+      <div class="btn-action foul" onclick="record('個人犯規', {foul:1})">⚠️ 犯規 (Foul)</div>
+    </div>
+  </div>
 
-  let selectedActionType = "";
-  let currentCoachId = "";
-  let currentSpreadsheetId = "";
-  let currentSheetGid = "";
-  let heartbeatTimer = null;
+  <div class="status-bar">
+    <div class="log-text" id="latestLog">初始化中...</div>
+    <button class="btn-undo" onclick="undoLast()">↩️ 撤銷</button>
+  </div>
 
-  // 1. 初始化 Session Token (防重新整理網頁時重複佔用名額)
-  let sessionToken = localStorage.getItem("COACH_SESSION_TOKEN");
-  if (!sessionToken) {
-    sessionToken = "token_" + Math.random().toString(36).substr(2, 9) + "_" + Date.now();
-    localStorage.setItem("COACH_SESSION_TOKEN", sessionToken);
-  }
+  <!-- Modal：教練登入 -->
+  <div class="modal" id="loginModal">
+    <div class="modal-content">
+      <div class="modal-title">👤 教練登入與賽事設定</div>
+      <p style="font-size: 13px; color: #94a3b8; margin-bottom: 10px;">請輸入您的教練 ID (系統將自動檢查可用名額並累加編號)：</p>
+      <input type="text" id="coachIdInput" class="input-field" placeholder="例如: C01 或 JOHN">
+      
+      <div id="resumeBox" style="display:none; background:#0f172a; padding:10px; border-radius:6px; margin-bottom:12px; border:1px solid #334155;">
+        <span style="font-size:12px; color:#cbd5e1;">發現先前進行中的賽事：</span><br>
+        <strong id="resumeGameText" style="color:#38bdf8; font-size:15px;"></strong>
+      </div>
 
-  // 動作按鈕點擊切換
-  function selectAction(btnElement, actionName) {
-    document.querySelectorAll('.btn-act').forEach(b => b.classList.remove('selected'));
-    btnElement.classList.add('selected');
-    selectedActionType = actionName;
-  }
+      <button class="btn-close" style="background:#22c55e;" onclick="handleLoginAction('RESUME')">▶️ 繼續記錄當前賽事</button>
+      <button class="btn-close" style="background:#0284c7; margin-top:8px;" onclick="handleLoginAction('NEW')">➕ 建立新賽事 (自動 +1)</button>
+    </div>
+  </div>
 
-  // 2. 教練登入
-  async function loginSystem() {
-    const coachSelect = document.getElementById("coach-select");
-    currentCoachId = coachSelect.value;
-    const loginBtn = document.getElementById("login-btn");
+  <!-- Modal：換人、名單、撤銷、提示、完場 (保持與原版相同，僅保留 HTML 結構) -->
+  <div class="modal" id="subModal">
+    <div class="modal-content">
+      <div class="modal-title">1. 點擊【被換下場】的球員：</div>
+      <div class="player-grid" id="subOutGrid"></div>
+      <div id="subInSection" style="display: none; margin-top: 15px;">
+        <div class="modal-title" style="color: #4ade80;">2. 點擊【替補上場】的球員：</div>
+        <div class="bench-grid" id="benchGrid"></div>
+      </div>
+      <button class="btn-close" onclick="closeModal('subModal')">取消 / 關閉</button>
+    </div>
+  </div>
 
-    loginBtn.disabled = true;
-    loginBtn.innerText = "驗證中...";
+  <div class="modal" id="rosterModal">
+    <div class="modal-content">
+      <div class="modal-title">⚙️ 設定全隊登錄號碼</div>
+      <input type="text" id="rosterInput" class="input-field" value="4, 7, 10, 12, 23, 1, 3, 5, 8, 99">
+      <button class="btn-close" style="background: #22c55e;" onclick="saveRoster()">儲存全隊名單</button>
+      <button class="btn-close" onclick="closeModal('rosterModal')">取消</button>
+    </div>
+  </div>
 
-    try {
-      const response = await fetch(GAS_URL, {
-        method: "POST",
-        body: JSON.stringify({
-          action: "login",
-          coachId: currentCoachId,
-          sessionToken: sessionToken
-        })
-      });
+  <div class="modal" id="undoModal">
+    <div class="modal-content" style="text-align: center;">
+      <div class="modal-title" id="undoModalTitle" style="color: #f87171;">⚠️ 確定撤銷最後一筆紀錄？</div>
+      <p id="undoModalDesc" style="color: #cbd5e1; font-size: 14px; margin: 15px 0 20px 0; background: #0f172a; padding: 10px; border-radius: 6px; border: 1px solid #334155;"></p>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn-close" style="background: #ef4444; margin-top: 0; flex: 1;" onclick="confirmUndo()">確定撤銷</button>
+        <button class="btn-close" style="background: #64748b; margin-top: 0; flex: 1;" onclick="closeModal('undoModal')">取消</button>
+      </div>
+    </div>
+  </div>
 
-      const result = await response.json();
+  <div class="modal" id="alertModal">
+    <div class="modal-content" style="text-align: center;">
+      <div class="modal-title" id="alertModalTitle" style="color: #f59e0b;">📢 系統提示</div>
+      <p id="alertModalText" style="color: #f8fafc; font-size: 15px; margin: 15px 0 20px 0; line-height: 1.5;"></p>
+      <button class="btn-close" style="background: #0284c7; margin-top: 0;" onclick="closeModal('alertModal')">知道了</button>
+    </div>
+  </div>
 
-      if (result.status === "success") {
-        document.getElementById("login-view").style.display = "none";
-        document.getElementById("main-view").style.display = "block";
-        document.getElementById("current-coach-display").innerText = currentCoachId;
-        startHeartbeat();
-      } else if (result.status === "full") {
-        alert(result.message);
+  <div class="modal" id="endGameModal">
+    <div class="modal-content" style="text-align: center;">
+      <div class="modal-title" style="color: #34d399; font-size: 18px;">🏁 比賽結束控制台</div>
+      <p style="color: #cbd5e1; font-size: 14px; margin: 12px 0 18px 0; text-align: left; background: #0f172a; padding: 12px; border-radius: 6px; border: 1px solid #334155; line-height: 1.5;">
+        ✅ 已寫入「🏁 比賽結束」並釋放系統名額。<br>
+        🔒 操作區已自動鎖定，防止手滑誤觸。
+      </p>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button class="btn-close" style="background: #475569; margin: 0;" onclick="closeModal('endGameModal')">👀 保持鎖定，現場核對數據</button>
+        <button class="btn-close" style="background: #e11d48; margin: 0;" onclick="startNewGamePrompt(); closeModal('endGameModal');">➕ 結束本場，開新比賽</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ⚠️ 請在此處貼上您最新部署的 GAS 網址 (確認 URL 以 /exec 結尾)
+    const GAS_URL = "https://script.google.com/a/macros/ywc.edu.mo/s/AKfycbwhUm-8jt7Vg1VezrmnCWye9OfC5g6wbamdeicHVBkfT__lW1oebkvDZuO0s4tDBS23/exec"; 
+
+    let currentCoachId = localStorage.getItem('bb_coachId') || "";
+    let currentGameId = localStorage.getItem('bb_gameId') || "";
+    let currentTargetSheet = "Self"; 
+    let currentPlayer = null;
+    let playerToSubOut = null;
+    let isGameEnded = JSON.parse(localStorage.getItem('bb_isGameEnded')) || false;
+
+    let fullRoster = JSON.parse(localStorage.getItem('bb_fullRoster')) || ["4", "7", "10", "12", "23", "1", "3", "5", "8", "99"];
+    let onCourt = JSON.parse(localStorage.getItem('bb_onCourt')) || ["4", "7", "10", "12", "23"];
+    let playerFouls = JSON.parse(localStorage.getItem('bb_playerFouls')) || {}; 
+    let actionStack = JSON.parse(localStorage.getItem('bb_actionStack')) || [];  
+
+    window.onload = function() {
+      if (!currentCoachId || !currentGameId) {
+        openLoginModal();
       } else {
-        alert("登入失敗：" + result.message);
+        updateSessionUI();
+        renderOnCourt();
+        applyLockState();
       }
-    } catch (err) {
-      alert("網路連線異常，請檢查網路設定！");
-    } finally {
-      loginBtn.disabled = false;
-      loginBtn.innerText = "進入系統";
-    }
-  }
+    };
 
-  // 3. 自動心跳機制 (每 60 秒發送一次)
-  function startHeartbeat() {
-    if (heartbeatTimer) clearInterval(heartbeatTimer);
-    
-    heartbeatTimer = setInterval(async () => {
-      try {
-        const res = await fetch(GAS_URL, {
-          method: "POST",
-          body: JSON.stringify({
-            action: "heartbeat",
-            sessionToken: sessionToken
-          })
-        });
-        const data = await res.json();
-        
-        if (data.status === "expired") {
-          alert("⚠️ 連線已逾時被釋放，請重新登入！");
-          location.reload();
+    window.onbeforeunload = function() {
+      return "比賽紀錄進行中，確定要離開嗎？";
+    };
+
+    function updateSessionUI() {
+      document.getElementById('dispCoachId').innerText = currentCoachId;
+      document.getElementById('dispGameId').innerText = currentGameId;
+      document.getElementById('latestLog').innerText = `當前賽事：[${currentGameId}] 準備就緒`;
+    }
+
+    function openLoginModal() {
+      document.getElementById('coachIdInput').value = currentCoachId || "C01";
+      const resumeBox = document.getElementById('resumeBox');
+      if (currentGameId) {
+        document.getElementById('resumeGameText').innerText = currentGameId;
+        resumeBox.style.display = 'block';
+      } else {
+        resumeBox.style.display = 'none';
+      }
+      document.getElementById('loginModal').style.display = 'flex';
+    }
+
+    function handleLoginAction(type) {
+      const inputId = document.getElementById('coachIdInput').value.trim().toUpperCase();
+      if (!inputId) {
+        showAlert("提示", "請輸入教練 ID！");
+        return;
+      }
+      currentCoachId = inputId;
+      localStorage.setItem('bb_coachId', currentCoachId);
+
+      if (type === 'RESUME' && currentGameId) {
+        closeModal('loginModal');
+        updateSessionUI();
+        renderOnCourt();
+        applyLockState();
+      } else {
+        fetchNewGameIdFromGAS();
+      }
+    }
+
+    function startNewGamePrompt() {
+      if (!currentCoachId) {
+        openLoginModal();
+        return;
+      }
+      if (confirm(`確定要為教練 [${currentCoachId}] 開設下一場新賽事嗎？\n(本機犯規數與隊列將會重置)`)) {
+        fetchNewGameIdFromGAS();
+      }
+    }
+
+    // 將所有 fetch 請求統一設定為 text/plain，避開 CORS 錯誤
+    function fetchNewGameIdFromGAS() {
+      document.getElementById('latestLog').innerText = "☁️ 檢查伺服器狀態與名額中...";
+      
+      fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({
+          actionType: "GET_NEW_GAME_ID",
+          coachId: currentCoachId
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.result === "success") {
+          currentGameId = data.gameId;
+          localStorage.setItem('bb_gameId', currentGameId);
+          
+          playerFouls = {};
+          actionStack = [];
+          isGameEnded = false;
+          localStorage.removeItem('bb_playerFouls');
+          localStorage.removeItem('bb_actionStack');
+          localStorage.setItem('bb_isGameEnded', JSON.stringify(false));
+          
+          closeModal('loginModal');
+          updateSessionUI();
+          applyLockState();
+          renderOnCourt();
+          showAlert("🎉 成功登入", `已為您保留 1 個連線名額。\n賽事 ID：${currentGameId}`);
+        } else {
+          // 如果 GAS 回傳 error (如：人數滿載)
+          showAlert("拒絕連線", data.message);
+          document.getElementById('latestLog').innerText = "❌ 無法登入：" + data.message;
         }
-      } catch (e) {
-        document.getElementById("online-status").innerText = "訊號不穩定";
-        document.getElementById("online-status").style.background = "#ffc107";
+      })
+      .catch(err => {
+        showAlert("網路連線失敗", "請檢查網路設定或 GAS 部署網址是否正確更新！");
+      });
+    }
+
+    function showAlert(title, text) {
+      document.getElementById('alertModalTitle').innerText = title;
+      document.getElementById('alertModalText').innerText = text;
+      document.getElementById('alertModal').style.display = 'flex';
+    }
+
+    function applyLockState() {
+      const area = document.getElementById('interactiveArea');
+      if (isGameEnded) {
+        area.classList.add('locked-area');
+        document.getElementById('latestLog').innerText = "🏁 比賽已完場 (按鈕已鎖定)";
+      } else {
+        area.classList.remove('locked-area');
       }
-    }, 60000); // 60 秒
-  }
-
-  // 4. 送出數據
-  async function submitData() {
-    const quarter = document.getElementById("quarter").value;
-    const playerNo = document.getElementById("player-no").value;
-    const submitBtn = document.getElementById("submit-btn");
-
-    if (!playerNo) {
-      alert("請輸入球員號碼！");
-      return;
-    }
-    if (!selectedActionType) {
-      alert("請選擇動作類型！");
-      return;
     }
 
-    submitBtn.disabled = true;
-    submitBtn.innerText = "寫入中...";
+    function openEndGameModal() {
+      isGameEnded = true;
+      localStorage.setItem('bb_isGameEnded', JSON.stringify(true));
+      applyLockState();
 
-    try {
-      const response = await fetch(GAS_URL, {
+      // 通知後端釋放教練名額
+      fetch(GAS_URL, {
         method: "POST",
-        body: JSON.stringify({
-          action: "data_submit",
-          coachId: currentCoachId,
-          sessionToken: sessionToken,
-          quarter: quarter,
-          playerNo: playerNo,
-          actionType: selectedActionType
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ 
+          gameId: currentGameId,
+          actionType: "END_GAME",
+          targetSheet: currentTargetSheet
         })
       });
 
-      const result = await response.json();
+      document.getElementById('endGameModal').style.display = 'flex';
+    }
 
-      if (result.status === "success") {
-        // 保存 GID 與 ID 用於下載
-        currentSpreadsheetId = result.spreadsheetId;
-        currentSheetGid = result.gid;
+    function renderOnCourt() {
+      const grid = document.getElementById('onCourtGrid');
+      grid.innerHTML = '';
+      
+      onCourt.forEach(num => {
+        const key = `${currentGameId}_${num}`;
+        const fouls = playerFouls[key] || 0;
 
-        // 新增至本地紀錄視窗
-        addLogItem(quarter, playerNo, selectedActionType);
+        const btn = document.createElement('div');
+        btn.className = 'btn-player';
+        
+        if (num === currentPlayer) btn.classList.add('selected');
+        if (fouls === 4) btn.classList.add('foul-warning');
+        if (fouls >= 5) btn.classList.add('fouled-out');
 
-        // 重置欄位
-        document.getElementById("player-no").value = "";
-        document.querySelectorAll('.btn-act').forEach(b => b.classList.remove('selected'));
-        selectedActionType = "";
-      } else {
-        alert("寫入失敗：" + result.message);
+        btn.innerHTML = `#${num}<span class="foul-badge">犯規: ${fouls}</span>`;
+        btn.onclick = () => selectPlayer(num, btn);
+        grid.appendChild(btn);
+      });
+    }
+
+    function selectPlayer(num, el) {
+      if (isGameEnded) return;
+
+      const key = `${currentGameId}_${num}`;
+      const fouls = playerFouls[key] || 0;
+
+      if (fouls >= 5) {
+        showAlert("⛔ 犯規滿額", `#${num} 號球員已 5 犯畢業！請進行換人。`);
+        openSubModal(num);
+        return;
       }
-    } catch (err) {
-      alert("傳送失敗，請確認網路連線！");
-    } finally {
-      submitBtn.disabled = false;
-      submitBtn.innerText = "➕ 送出數據";
-    }
-  }
 
-  // 新增記錄至 UI
-  function addLogItem(quarter, playerNo, action) {
-    const logContainer = document.getElementById("local-logs");
-    if (logContainer.innerText.includes("尚無輸入記錄")) {
-      logContainer.innerHTML = "";
+      currentPlayer = num;
+      document.querySelectorAll('#onCourtGrid .btn-player').forEach(b => b.classList.remove('selected'));
+      el.classList.add('selected');
     }
-    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const item = document.createElement("div");
-    item.className = "log-item";
-    item.innerHTML = `<strong>[${timeStr}]</strong> ${quarter} - #${playerNo} ${action}`;
-    logContainer.insertBefore(item, logContainer.firstChild);
-  }
 
-  // 5. 即時下載專屬 Excel
-  function downloadMyExcel() {
-    if (!currentSpreadsheetId || !currentSheetGid) {
-      alert("⚠️ 尚無任何數據可下載，請先完成至少一次數據錄入！");
-      return;
+    function record(actionName, payload) {
+      if (isGameEnded) {
+        showAlert("🔒 比賽已完場", "操作區已鎖定，若要開始新賽事請點擊【開新比賽】。");
+        return;
+      }
+
+      if (!currentPlayer) {
+        showAlert("⚠️ 提示", "請先點選場上球員！");
+        return;
+      }
+
+      const key = `${currentGameId}_${currentPlayer}`;
+      const currentFouls = playerFouls[key] || 0;
+
+      if (currentFouls >= 5) {
+        showAlert("⛔ 犯規滿額", `#${currentPlayer} 號球員已 5 犯畢業！請換人。`);
+        openSubModal(currentPlayer);
+        return;
+      }
+
+      let isFoulAction = false;
+      if (payload.foul) {
+        isFoulAction = true;
+        const newFouls = currentFouls + 1;
+        playerFouls[key] = newFouls;
+        localStorage.setItem('bb_playerFouls', JSON.stringify(playerFouls));
+
+        if (newFouls === 3) showAlert("📢 犯規提示", `#${currentPlayer} 號已 3 犯！`);
+        if (newFouls === 4) showAlert("⚠️ 犯規警告", `#${currentPlayer} 號已 4 犯（犯滿危機）！`);
+        if (newFouls >= 5) showAlert("🚨 畢業通知", `#${currentPlayer} 號 5 犯畢業！請進行換人！`);
+      }
+
+      actionStack.push({
+        gameId: currentGameId,
+        player: currentPlayer,
+        isFoul: isFoulAction,
+        description: `[${currentGameId}] #${currentPlayer} ${actionName}`
+      });
+      localStorage.setItem('bb_actionStack', JSON.stringify(actionStack));
+
+      const data = { 
+        actionType: "RECORD",
+        gameId: currentGameId,
+        targetSheet: currentTargetSheet,
+        player: currentPlayer, 
+        rawText: `#${currentPlayer} ${actionName}`, 
+        ...payload 
+      };
+
+      document.getElementById('latestLog').innerText = `已送出: [${currentGameId}] #${currentPlayer} ${actionName}`;
+
+      fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify(data)
+      });
+
+      renderOnCourt();
+
+      if ((playerFouls[key] || 0) >= 5) {
+        openSubModal(currentPlayer);
+      }
     }
-    const downloadUrl = `https://docs.google.com/spreadsheets/d/${currentSpreadsheetId}/export?format=xlsx&gid=${currentSheetGid}`;
-    window.open(downloadUrl, '_blank');
-  }
 
-  // 6. 主動登出
-  async function logoutSystem() {
-    if (confirm("確定要登出系統嗎？")) {
-      if (heartbeatTimer) clearInterval(heartbeatTimer);
-      try {
-        await fetch(GAS_URL, {
-          method: "POST",
-          body: JSON.stringify({
-            action: "logout",
-            sessionToken: sessionToken
-          })
-        });
-      } catch (e) {}
-      location.reload();
+    function undoLast() {
+      if (actionStack.length === 0) {
+        showAlert("提示", "目前沒有可以撤銷的紀錄！");
+        return;
+      }
+      
+      const lastAction = actionStack[actionStack.length - 1];
+      document.getElementById('undoModalTitle').innerText = `⚠️ 確定撤銷？`;
+      document.getElementById('undoModalDesc').innerText = `即將刪除：${lastAction.description}`;
+      document.getElementById('undoModal').style.display = 'flex';
     }
-  }
-</script>
 
+    function confirmUndo() {
+      closeModal('undoModal');
+      if (actionStack.length === 0) return;
+
+      const lastAction = actionStack.pop();
+      localStorage.setItem('bb_actionStack', JSON.stringify(actionStack));
+
+      if (lastAction.isFoul) {
+        const key = `${lastAction.gameId}_${lastAction.player}`;
+        if (playerFouls[key]) {
+          playerFouls[key] = Math.max(0, playerFouls[key] - 1);
+          localStorage.setItem('bb_playerFouls', JSON.stringify(playerFouls));
+        }
+      }
+
+      document.getElementById('latestLog').innerText = "撤銷中...";
+
+      fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ 
+          actionType: "DELETE_LAST",
+          gameId: lastAction.gameId,
+          targetSheet: currentTargetSheet
+        })
+      }).then(() => {
+        renderOnCourt();
+        document.getElementById('latestLog').innerText = `已成功撤銷：${lastAction.description}`;
+      });
+    }
+
+    function openSubModal(autoSelectNum = null) {
+      playerToSubOut = null;
+      document.getElementById('subInSection').style.display = 'none';
+      const outGrid = document.getElementById('subOutGrid');
+      outGrid.innerHTML = '';
+      
+      onCourt.forEach(num => {
+        const key = `${currentGameId}_${num}`;
+        const fouls = playerFouls[key] || 0;
+
+        const btn = document.createElement('div');
+        btn.className = `btn-player ${fouls >= 5 ? 'fouled-out' : ''}`;
+        btn.innerHTML = `#${num}<span class="foul-badge">犯規: ${fouls}</span>`;
+        btn.onclick = () => selectSubOut(num, btn);
+        outGrid.appendChild(btn);
+
+        if (autoSelectNum && num === autoSelectNum) {
+          selectSubOut(num, btn);
+        }
+      });
+      document.getElementById('subModal').style.display = 'flex';
+    }
+
+    function selectSubOut(num, el) {
+      playerToSubOut = num;
+      document.querySelectorAll('#subOutGrid .btn-player').forEach(b => b.classList.remove('selected'));
+      el.classList.add('selected');
+
+      const bench = fullRoster.filter(p => !onCourt.includes(p));
+      const benchGrid = document.getElementById('benchGrid');
+      benchGrid.innerHTML = '';
+
+      bench.forEach(benchNum => {
+        const btn = document.createElement('div');
+        btn.className = 'btn-bench';
+        btn.innerText = `#${benchNum}`;
+        btn.onclick = () => executeSub(benchNum);
+        benchGrid.appendChild(btn);
+      });
+      document.getElementById('subInSection').style.display = 'block';
+    }
+
+    function executeSub(subInNum) {
+      const index = onCourt.indexOf(playerToSubOut);
+      if (index !== -1) {
+        onCourt[index] = subInNum;
+        localStorage.setItem('bb_onCourt', JSON.stringify(onCourt));
+        if (currentPlayer === playerToSubOut) currentPlayer = subInNum;
+        renderOnCourt();
+        document.getElementById('latestLog').innerText = `換人: #${playerToSubOut} 下場, #${subInNum} 上場`;
+      }
+      closeModal('subModal');
+    }
+
+    function openRosterModal() {
+      document.getElementById('rosterInput').value = fullRoster.join(', ');
+      document.getElementById('rosterModal').style.display = 'flex';
+    }
+
+    function saveRoster() {
+      const input = document.getElementById('rosterInput').value;
+      const list = input.split(',').map(s => s.trim()).filter(s => s.length > 0);
+      if (list.length < 5) {
+        showAlert("錯誤", "登錄名單至少需要 5 位球員！");
+        return;
+      }
+      fullRoster = list;
+      localStorage.setItem('bb_fullRoster', JSON.stringify(fullRoster));
+      onCourt = fullRoster.slice(0, 5);
+      localStorage.setItem('bb_onCourt', JSON.stringify(onCourt));
+      currentPlayer = null;
+      renderOnCourt();
+      closeModal('rosterModal');
+      document.getElementById('latestLog').innerText = "已更新全隊名單！";
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).style.display = 'none';
+    }
+  </script>
 </body>
 </html>
