@@ -239,7 +239,7 @@
     }
 
     function handleLoginAction(type) {
-      const inputId = document.getElementById('coachIdInput').value.trim().toUpperCase();
+      const inputId = document.getElementById('coachIdInput').value.trim();
       if (!inputId) {
         showAlert("提示", "請選擇教練身份！");
         return;
