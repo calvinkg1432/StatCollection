@@ -187,6 +187,14 @@
 
     let currentCoachId = localStorage.getItem('bb_coachId') || "";
     let currentGameId = localStorage.getItem('bb_gameId') || "";
+
+    // ★ 產生並記錄這台裝置的專屬身分證 (Device UUID)
+    let deviceId = localStorage.getItem('bb_deviceId');
+    if (!deviceId) {
+      deviceId = 'DEV-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+      localStorage.setItem('bb_deviceId', deviceId);
+    }
+
     let currentPlayer = null;
     let playerToSubOut = null;
     let isGameEnded = JSON.parse(localStorage.getItem('bb_isGameEnded')) || false;
@@ -267,7 +275,8 @@
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({
           actionType: "GET_NEW_GAME_ID",
-          coachId: currentCoachId
+          coachId: currentCoachId,
+          deviceId: deviceId // ★ 專員修正：把裝置代碼確實傳給後端驗證！
         })
       })
       .then(res => res.json())
