@@ -176,6 +176,8 @@
       <div style="display: flex; flex-direction: column; gap: 10px;">
         <button class="btn-close" style="background: #475569; margin: 0;" onclick="closeModal('endGameModal')">👀 保持鎖定，現場核對數據</button>
         <button class="btn-close" style="background: #0284c7; margin: 0;" onclick="unlockGame()">🔓 解鎖繼續 (打加時賽/改判)</button>
+        <!-- ★ 新增這顆下載按鈕 -->
+        <button class="btn-close" style="background: #10b981; margin: 0;" onclick="downloadCSV()">📥 下載本場數據 (CSV)</button>
         <button class="btn-close" style="background: #e11d48; margin: 0;" onclick="startNewGamePrompt(); closeModal('endGameModal');">➕ 結束本場，開新比賽</button>
       </div>
     </div>
@@ -565,6 +567,51 @@
     function closeModal(id) {
       document.getElementById(id).style.display = 'none';
     }
+
+    function downloadCSV() {
+      if (!currentGameId) {
+        showAlert("錯誤", "目前沒有正在進行的賽事，無法下載！");
+        return;
+      }
+      
+      document.getElementById('latestLog').innerText = "⏳ 正在產生 CSV 檔案，請稍候...";
+      
+      fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ 
+          actionType: "DOWNLOAD_CSV",
+          gameId: currentGameId
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.result === "success") {
+          // ★ 加入 BOM (\uFEFF) 讓 Microsoft Excel 開啟時能正確辨識 UTF-8 中文不亂碼
+          const bom = "\uFEFF";
+          const blob = new Blob([bom + data.csvContent], { type: 'text/csv;charset=utf-8;' });
+          
+          // 建立虛擬的下載連結並自動點擊
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.setAttribute("href", url);
+          // 檔案名稱會自動加上該場比賽的 ID (例如: GameData_Coach_A-001.csv)
+          link.setAttribute("download", `GameData_${currentGameId}.csv`); 
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          document.getElementById('latestLog').innerText = "✅ CSV 檔案下載成功！";
+        } else {
+          showAlert("下載失敗", data.message);
+          document.getElementById('latestLog').innerText = "❌ 下載失敗：" + data.message;
+        }
+      })
+      .catch(err => {
+        showAlert("網路連線失敗", "無法下載檔案，請檢查網路。");
+      });
+    }
+
   </script>
 </body>
 </html>
