@@ -105,16 +105,15 @@
   <div class="modal" id="loginModal">
     <div class="modal-content">
       <div class="modal-title">👤 教練登入與賽事設定</div>
-      <p style="font-size: 13px; color: #94a3b8; margin-bottom: 10px;">請輸入您的教練 ID (系統將自動檢查可用名額並累加編號)：</p>
-      <!-- <input type="text" id="coachIdInput" class="input-field" placeholder="例如: C01 或 JOHN"> -->
+      <p style="font-size: 13px; color: #94a3b8; margin-bottom: 10px;">請選擇您的教練身份 (系統將自動檢查可用名額並累加編號)：</p>
       
-          <select id="coachIdInput" class="input-field">
-            <option value="">-- 請選擇您的教練身份 --</option>
-            <option value="Coach_A">張教練 (Coach_A)</option>
-            <option value="Coach_B">速教練 (Coach_B)</option>
-            <option value="Coach_C">岑教練 (Coach_C)</option>
-            <option value="Coach_D">教練 D (Coach_D)</option>
-          </select>
+      <select id="coachIdInput" class="input-field">
+        <option value="">-- 請選擇您的教練身份 --</option>
+        <option value="Coach_A">張教練 (Coach_A)</option>
+        <option value="Coach_B">速教練 (Coach_B)</option>
+        <option value="Coach_C">岑教練 (Coach_C)</option>
+        <option value="Coach_D">教練 D (Coach_D)</option>
+      </select>
 
       <div id="resumeBox" style="display:none; background:#0f172a; padding:10px; border-radius:6px; margin-bottom:12px; border:1px solid #334155;">
         <span style="font-size:12px; color:#cbd5e1;">發現先前進行中的賽事：</span><br>
@@ -176,7 +175,6 @@
       <div style="display: flex; flex-direction: column; gap: 10px;">
         <button class="btn-close" style="background: #475569; margin: 0;" onclick="closeModal('endGameModal')">👀 保持鎖定，現場核對數據</button>
         <button class="btn-close" style="background: #0284c7; margin: 0;" onclick="unlockGame()">🔓 解鎖繼續 (打加時賽/改判)</button>
-        <!-- ★ 新增這顆下載按鈕 -->
         <button class="btn-close" style="background: #10b981; margin: 0;" onclick="downloadCSV()">📥 下載本場數據 (CSV)</button>
         <button class="btn-close" style="background: #e11d48; margin: 0;" onclick="startNewGamePrompt(); closeModal('endGameModal');">➕ 結束本場，開新比賽</button>
       </div>
@@ -189,7 +187,6 @@
 
     let currentCoachId = localStorage.getItem('bb_coachId') || "";
     let currentGameId = localStorage.getItem('bb_gameId') || "";
-    //let currentTargetSheet = "Self"; 
     let currentPlayer = null;
     let playerToSubOut = null;
     let isGameEnded = JSON.parse(localStorage.getItem('bb_isGameEnded')) || false;
@@ -200,10 +197,10 @@
     let actionStack = JSON.parse(localStorage.getItem('bb_actionStack')) || [];  
 
     window.onload = function() {
-      // 不管有沒有舊紀錄，一律強制彈出登入/身份選單
+      // 一律強制彈出登入/身份選單
       openLoginModal();
       
-      // 如果有舊紀錄，在背景先準備好畫面，等教練按下「繼續記錄」就能馬上銜接
+      // 若有舊紀錄，背景先準備畫面
       if (currentCoachId && currentGameId) {
         updateSessionUI();
         renderOnCourt();
@@ -222,7 +219,7 @@
     }
 
     function openLoginModal() {
-      document.getElementById('coachIdInput').value = currentCoachId || "C01";
+      document.getElementById('coachIdInput').value = currentCoachId || "";
       const resumeBox = document.getElementById('resumeBox');
       if (currentGameId) {
         document.getElementById('resumeGameText').innerText = currentGameId;
@@ -236,7 +233,7 @@
     function handleLoginAction(type) {
       const inputId = document.getElementById('coachIdInput').value.trim().toUpperCase();
       if (!inputId) {
-        showAlert("提示", "請輸入教練 ID！");
+        showAlert("提示", "請選擇教練身份！");
         return;
       }
       currentCoachId = inputId;
@@ -290,7 +287,7 @@
           updateSessionUI();
           applyLockState();
           renderOnCourt();
-          showAlert("🎉 成功登入", `已為您保留 1 個連線名額。\n賽事 ID：${currentGameId}`);
+          showAlert("🎉 成功登入", `已為您保留連線名額。\n賽事 ID：${currentGameId}`);
         } else {
           showAlert("拒絕連線", data.message);
           document.getElementById('latestLog').innerText = "❌ 無法登入：" + data.message;
@@ -327,8 +324,7 @@
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ 
           gameId: currentGameId,
-          actionType: "END_GAME",
-          //targetSheet: currentTargetSheet
+          actionType: "END_GAME"
         })
       });
 
@@ -424,7 +420,6 @@
       const data = { 
         actionType: "RECORD",
         gameId: currentGameId,
-        //targetSheet: currentTargetSheet,
         player: currentPlayer, 
         rawText: `#${currentPlayer} ${actionName}`, 
         ...payload 
@@ -479,8 +474,7 @@
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ 
           actionType: "DELETE_LAST",
-          gameId: lastAction.gameId,
-          //targetSheet: currentTargetSheet
+          gameId: lastAction.gameId
         })
       }).then(() => {
         renderOnCourt();
@@ -587,7 +581,7 @@
       .then(res => res.json())
       .then(data => {
         if (data.result === "success") {
-          // ★ 加入 BOM (\uFEFF) 讓 Microsoft Excel 開啟時能正確辨識 UTF-8 中文不亂碼
+          // 加入 BOM (\uFEFF) 讓 Microsoft Excel 開啟時能正確辨識 UTF-8 中文不亂碼
           const bom = "\uFEFF";
           const blob = new Blob([bom + data.csvContent], { type: 'text/csv;charset=utf-8;' });
           
@@ -611,7 +605,6 @@
         showAlert("網路連線失敗", "無法下載檔案，請檢查網路。");
       });
     }
-
   </script>
 </body>
 </html>
