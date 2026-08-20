@@ -198,9 +198,11 @@
     let actionStack = JSON.parse(localStorage.getItem('bb_actionStack')) || [];  
 
     window.onload = function() {
-      if (!currentCoachId || !currentGameId) {
-        openLoginModal();
-      } else {
+      // 不管有沒有舊紀錄，一律強制彈出登入/身份選單
+      openLoginModal();
+      
+      // 如果有舊紀錄，在背景先準備好畫面，等教練按下「繼續記錄」就能馬上銜接
+      if (currentCoachId && currentGameId) {
         updateSessionUI();
         renderOnCourt();
         applyLockState();
