@@ -78,13 +78,20 @@
     <div class="action-grid">
       <div class="btn-action" onclick="record('2分進球', {p2_attempts:1, p2_made:1})">🏀 +2分</div>
       <div class="btn-action miss" onclick="record('2分射失', {p2_attempts:1})">❌ 2分射失</div>
+      
       <div class="btn-action" onclick="record('3分進球', {p3_attempts:1, p3_made:1})">🔥 +3分</div>
       <div class="btn-action miss" onclick="record('3分射失', {p3_attempts:1})">❌ 3分射失</div>
+
       <div class="btn-action" onclick="record('罰球進球', {ft_attempts:1, ft_made:1})">🎯 罰球入</div>
       <div class="btn-action miss" onclick="record('罰球射失', {ft_attempts:1})">❌ 罰球失</div>
+
       <div class="btn-action stat" onclick="record('籃板', {reb:1})">🖐️ 籃板</div>
       <div class="btn-action stat" onclick="record('助攻', {ast:1})">👟 助攻</div>
+      
       <div class="btn-action stat" onclick="record('封阻', {blk:1})">🚫 封阻</div>
+      <div class="btn-action stat" onclick="record('抄截', {stl:1})">⚡ 抄截</div>
+
+      <div class="btn-action miss" onclick="record('失誤', {tov:1})">🔄 失誤</div>
       <div class="btn-action foul" onclick="record('個人犯規', {foul:1})">⚠️ 犯規 (Foul)</div>
     </div>
   </div>
@@ -111,7 +118,6 @@
     </div>
   </div>
 
-  <!-- Modal：換人、名單、撤銷、提示、完場 (保持與原版相同，僅保留 HTML 結構) -->
   <div class="modal" id="subModal">
     <div class="modal-content">
       <div class="modal-title">1. 點擊【被換下場】的球員：</div>
@@ -161,13 +167,14 @@
       </p>
       <div style="display: flex; flex-direction: column; gap: 10px;">
         <button class="btn-close" style="background: #475569; margin: 0;" onclick="closeModal('endGameModal')">👀 保持鎖定，現場核對數據</button>
+        <button class="btn-close" style="background: #0284c7; margin: 0;" onclick="unlockGame()">🔓 解鎖繼續 (打加時賽/改判)</button>
         <button class="btn-close" style="background: #e11d48; margin: 0;" onclick="startNewGamePrompt(); closeModal('endGameModal');">➕ 結束本場，開新比賽</button>
       </div>
     </div>
   </div>
 
   <script>
-    // ⚠️ 請在此處貼上您最新部署的 GAS 網址 (確認 URL 以 /exec 結尾)
+    // ⚠️ 請填寫正確的 GAS 正式部署網址 (/exec 結尾)
     const GAS_URL = "https://script.google.com/a/macros/ywc.edu.mo/s/AKfycbwhUm-8jt7Vg1VezrmnCWye9OfC5g6wbamdeicHVBkfT__lW1oebkvDZuO0s4tDBS23/exec"; 
 
     let currentCoachId = localStorage.getItem('bb_coachId') || "";
@@ -243,7 +250,6 @@
       }
     }
 
-    // 將所有 fetch 請求統一設定為 text/plain，避開 CORS 錯誤
     function fetchNewGameIdFromGAS() {
       document.getElementById('latestLog').innerText = "☁️ 檢查伺服器狀態與名額中...";
       
@@ -274,7 +280,6 @@
           renderOnCourt();
           showAlert("🎉 成功登入", `已為您保留 1 個連線名額。\n賽事 ID：${currentGameId}`);
         } else {
-          // 如果 GAS 回傳 error (如：人數滿載)
           showAlert("拒絕連線", data.message);
           document.getElementById('latestLog').innerText = "❌ 無法登入：" + data.message;
         }
@@ -305,7 +310,6 @@
       localStorage.setItem('bb_isGameEnded', JSON.stringify(true));
       applyLockState();
 
-      // 通知後端釋放教練名額
       fetch(GAS_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
@@ -317,6 +321,14 @@
       });
 
       document.getElementById('endGameModal').style.display = 'flex';
+    }
+
+    function unlockGame() {
+      isGameEnded = false;
+      localStorage.setItem('bb_isGameEnded', JSON.stringify(false));
+      applyLockState();
+      closeModal('endGameModal');
+      document.getElementById('latestLog').innerText = "🔓 比賽已解鎖，可繼續紀錄！";
     }
 
     function renderOnCourt() {
