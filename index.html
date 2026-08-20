@@ -179,7 +179,7 @@
 
     let currentCoachId = localStorage.getItem('bb_coachId') || "";
     let currentGameId = localStorage.getItem('bb_gameId') || "";
-    let currentTargetSheet = "Self"; 
+    //let currentTargetSheet = "Self"; 
     let currentPlayer = null;
     let playerToSubOut = null;
     let isGameEnded = JSON.parse(localStorage.getItem('bb_isGameEnded')) || false;
@@ -316,7 +316,7 @@
         body: JSON.stringify({ 
           gameId: currentGameId,
           actionType: "END_GAME",
-          targetSheet: currentTargetSheet
+          //targetSheet: currentTargetSheet
         })
       });
 
@@ -412,7 +412,7 @@
       const data = { 
         actionType: "RECORD",
         gameId: currentGameId,
-        targetSheet: currentTargetSheet,
+        //targetSheet: currentTargetSheet,
         player: currentPlayer, 
         rawText: `#${currentPlayer} ${actionName}`, 
         ...payload 
@@ -468,7 +468,7 @@
         body: JSON.stringify({ 
           actionType: "DELETE_LAST",
           gameId: lastAction.gameId,
-          targetSheet: currentTargetSheet
+          //targetSheet: currentTargetSheet
         })
       }).then(() => {
         renderOnCourt();
